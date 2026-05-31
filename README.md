@@ -1,1 +1,1 @@
-# aimanage
+https://stoneloveu-droid.github.io/aimanage/

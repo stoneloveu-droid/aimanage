@@ -189,19 +189,42 @@
         <div class="cmd-note" id="cmdInfo"></div>
         <div class="cmd-os-label">Linux / macOS</div>
         <div class="cmd-box">
-          <button class="cmd-copy-btn" onclick="App.copyCmd('cmdLinuxText')">Copy</button>
-          <span id="cmdLinuxText"></span>
+          <button class="cmd-copy-btn" onclick="App.copyCmd('cmdLinuxText')"><i class="ti ti-copy"></i> Copy</button>
+          <code id="cmdLinuxText"></code>
         </div>
         <div class="cmd-os-label">Windows</div>
         <div class="cmd-box">
-          <button class="cmd-copy-btn" onclick="App.copyCmd('cmdWinText')">Copy</button>
-          <span id="cmdWinText"></span>
+          <button class="cmd-copy-btn" onclick="App.copyCmd('cmdWinText')"><i class="ti ti-copy"></i> Copy</button>
+          <code id="cmdWinText"></code>
         </div>
       </div>
       <div class="sheet-footer">
         <button class="btn" onclick="App.closeOverlay('cmdOverlay')">Đóng</button>
         <button class="btn btn-primary" onclick="App.directOpenFromCmd()">
           <i class="ti ti-external-link"></i> Mở tab mới
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ───── Modal: Xóa xác nhận ───── -->
+<div class="overlay" id="deleteOverlay">
+  <div class="sheet-wrap">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h2><i class="ti ti-trash" style="color:var(--red)"></i> Xóa tài khoản</h2>
+        <button class="btn btn-icon" onclick="App.closeOverlay('deleteOverlay')"><i class="ti ti-x"></i></button>
+      </div>
+      <div class="sheet-body">
+        <p style="font-size:14px;line-height:1.6;opacity:0.8;">Bạn có chắc muốn xóa tài khoản <strong id="deleteAccName"></strong>?<br>Hành động này không thể hoàn tác.</p>
+      </div>
+      <div class="sheet-footer">
+        <button class="btn" onclick="App.closeOverlay('deleteOverlay')">Hủy</button>
+        <button class="btn btn-danger-solid" onclick="App.confirmDelete()">
+          <i class="ti ti-trash"></i> Xóa
         </button>
       </div>
     </div>
@@ -229,7 +252,7 @@
             <label>Personal Access Token</label>
             <div style="display:flex;gap:6px;">
               <input id="sGistToken" type="password" placeholder="ghp_xxxxxxxxxxxx" style="flex:1;" />
-              <button class="btn btn-sm" onclick="App.toggleTokenVisibility()">
+              <button class="btn btn-sm btn-icon" onclick="App.toggleTokenVisibility()" title="Hiện/Ẩn token">
                 <i class="ti ti-eye" id="tokenEyeIcon"></i>
               </button>
             </div>
@@ -307,6 +330,9 @@
               <i class="ti ti-upload"></i> Import JSON
             </button>
           </div>
+          <button class="btn btn-sm btn-danger" onclick="App.clearAllData()" style="width:100%;justify-content:center;margin-top:8px;">
+            <i class="ti ti-trash"></i> Xóa toàn bộ dữ liệu
+          </button>
         </div>
 
       </div><!-- /.sheet-body -->

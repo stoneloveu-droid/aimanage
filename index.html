@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Account Hub</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css" />
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ───── Topbar ───── -->
+  <div class="topbar">
+    <div class="logo-icon"><i class="ti ti-robot"></i></div>
+    <div>
+      <div class="logo-text">AI Account Hub</div>
+      <div class="logo-sub">Quản lý tài khoản AI</div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-icon" id="syncBtn" aria-label="Đồng bộ Gist" onclick="App.syncGist()" title="Đồng bộ GitHub Gist">
+        <i class="ti ti-cloud-upload"></i>
+      </button>
+      <button class="btn btn-icon" aria-label="Cài đặt" onclick="App.openSettings()">
+        <i class="ti ti-settings"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ───── Stats ───── -->
+  <div class="stats-row" id="statsRow"></div>
+
+  <!-- ───── Filters ───── -->
+  <div class="filter-bar">
+    <div class="search-wrap">
+      <i class="ti ti-search"></i>
+      <input type="text" id="searchInput" placeholder="Tìm tên, email, ghi chú..." oninput="App.render()" />
+    </div>
+    <div class="filter-chips" id="aiChips"></div>
+    <div class="filter-row">
+      <select class="filter-sel" id="filterStatus" onchange="App.render()">
+        <option value="">Tất cả trạng thái</option>
+        <option value="active">Active</option>
+        <option value="limited">Rate Limited</option>
+        <option value="expired">Hết hạn</option>
+        <option value="banned">Banned</option>
+      </select>
+      <select class="filter-sel" id="filterTag" onchange="App.render()">
+        <option value="">Tất cả tag</option>
+        <option>Coding</option>
+        <option>Writing</option>
+        <option>Research</option>
+        <option>Translation</option>
+        <option>Creative</option>
+        <option>Analysis</option>
+        <option>Image Gen</option>
+        <option>Backup</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="result-label" id="resultLabel"></div>
+  <div class="cards-list" id="cardsList"></div>
+  <div class="toaster" id="toaster"></div>
+
+  <button class="fab" onclick="App.openAdd()">
+    <i class="ti ti-plus"></i> Thêm tài khoản
+  </button>
+
+</div><!-- /#app -->
+
+
+<!-- ───── Modal: Thêm / Sửa tài khoản ───── -->
+<div class="overlay" id="formOverlay">
+  <div class="sheet-wrap">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h2 id="formTitle">Thêm tài khoản mới</h2>
+        <button class="btn btn-icon" onclick="App.closeForm()"><i class="ti ti-x"></i></button>
+      </div>
+      <div class="sheet-body">
+        <div class="frow">
+          <div class="fgroup">
+            <label>Tên tài khoản *</label>
+            <input id="fName" type="text" placeholder="VD: Claude - Work" />
+          </div>
+          <div class="fgroup">
+            <label>Loại AI *</label>
+            <select id="fAI">
+              <option>ChatGPT</option><option>Claude</option><option>Gemini</option>
+              <option>Grok</option><option>Perplexity</option><option>DeepSeek</option>
+              <option>Copilot</option><option>Mistral</option><option>Llama</option>
+            </select>
+          </div>
+        </div>
+        <div class="fgroup">
+          <label>Email / Username</label>
+          <input id="fEmail" type="email" placeholder="email@example.com" />
+        </div>
+        <div class="frow">
+          <div class="fgroup">
+            <label>Trạng thái</label>
+            <select id="fStatus">
+              <option value="active">Active</option>
+              <option value="limited">Rate Limited</option>
+              <option value="expired">Hết hạn</option>
+              <option value="banned">Banned</option>
+            </select>
+          </div>
+          <div class="fgroup">
+            <label>Tags (cách bởi dấu phẩy)</label>
+            <input id="fTags" type="text" placeholder="Coding, Research" />
+          </div>
+        </div>
+        <div class="fgroup">
+          <label>URL tùy chỉnh (để trống = dùng mặc định)</label>
+          <input id="fUrl" type="url" placeholder="https://..." />
+        </div>
+        <div class="chrome-box">
+          <div class="chrome-box-title"><i class="ti ti-brand-chrome"></i> Chrome Profile</div>
+          <div class="fgroup">
+            <label>Profile directory</label>
+            <input id="fProfile" type="text" placeholder='VD: "Profile 3" hoặc "Default"' />
+          </div>
+          <div class="fgroup">
+            <label>Đường dẫn Chrome (ghi đè mặc định)</label>
+            <input id="fChromePath" type="text" placeholder="/usr/bin/google-chrome" />
+          </div>
+          <div class="chrome-hint">
+            <i class="ti ti-info-circle"></i>
+            Tìm Profile: Chrome → <code>chrome://version</code> → xem Profile Path
+          </div>
+        </div>
+        <div class="fgroup">
+          <label>Ghi chú</label>
+          <textarea id="fNote" placeholder="Ghi chú về tài khoản này..."></textarea>
+        </div>
+      </div>
+      <div class="sheet-footer">
+        <button class="btn" onclick="App.closeForm()">Hủy</button>
+        <button class="btn btn-primary" onclick="App.saveAccount()">
+          <i class="ti ti-check"></i> Lưu
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ───── Modal: Chọn cách mở chat ───── -->
+<div class="overlay" id="openOverlay">
+  <div class="sheet-wrap">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <div>
+          <h2 id="openTitle">Mở chat</h2>
+          <div class="open-sub" id="openSub"></div>
+        </div>
+        <button class="btn btn-icon" onclick="App.closeOpen()"><i class="ti ti-x"></i></button>
+      </div>
+      <div class="sheet-body">
+        <div class="option-list" id="openOptionList"></div>
+        <div class="always-ask-row">
+          <div>
+            <div>Luôn hỏi cách mở</div>
+            <div class="pref-sub">Tắt = dùng phương thức mặc định</div>
+          </div>
+          <button class="toggle" id="alwaysAskToggle" onclick="App.toggleAlwaysAsk()"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ───── Modal: Lệnh Chrome terminal ───── -->
+<div class="overlay" id="cmdOverlay">
+  <div class="sheet-wrap">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h2><i class="ti ti-terminal"></i> Lệnh mở Chrome</h2>
+        <button class="btn btn-icon" onclick="App.closeOverlay('cmdOverlay')"><i class="ti ti-x"></i></button>
+      </div>
+      <div class="sheet-body">
+        <div class="cmd-note" id="cmdInfo"></div>
+        <div class="cmd-os-label">Linux / macOS</div>
+        <div class="cmd-box">
+          <button class="cmd-copy-btn" onclick="App.copyCmd('cmdLinuxText')">Copy</button>
+          <span id="cmdLinuxText"></span>
+        </div>
+        <div class="cmd-os-label">Windows</div>
+        <div class="cmd-box">
+          <button class="cmd-copy-btn" onclick="App.copyCmd('cmdWinText')">Copy</button>
+          <span id="cmdWinText"></span>
+        </div>
+      </div>
+      <div class="sheet-footer">
+        <button class="btn" onclick="App.closeOverlay('cmdOverlay')">Đóng</button>
+        <button class="btn btn-primary" onclick="App.directOpenFromCmd()">
+          <i class="ti ti-external-link"></i> Mở tab mới
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ───── Modal: Cài đặt ───── -->
+<div class="overlay" id="settingsOverlay">
+  <div class="sheet-wrap">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h2>Cài đặt</h2>
+        <button class="btn btn-icon" onclick="App.closeOverlay('settingsOverlay')"><i class="ti ti-x"></i></button>
+      </div>
+      <div class="sheet-body">
+
+        <!-- GitHub Gist sync -->
+        <div class="settings-section">
+          <div class="settings-section-title">
+            <i class="ti ti-brand-github"></i> Đồng bộ GitHub Gist
+          </div>
+          <div class="fgroup">
+            <label>Personal Access Token</label>
+            <div style="display:flex;gap:6px;">
+              <input id="sGistToken" type="password" placeholder="ghp_xxxxxxxxxxxx" style="flex:1;" />
+              <button class="btn btn-sm" onclick="App.toggleTokenVisibility()">
+                <i class="ti ti-eye" id="tokenEyeIcon"></i>
+              </button>
+            </div>
+            <div class="chrome-hint">
+              GitHub → Settings → Developer settings → Personal access tokens → quyền <code>gist</code>
+            </div>
+          </div>
+          <div class="fgroup">
+            <label>Gist ID</label>
+            <input id="sGistId" type="text" placeholder="abc123def456..." />
+            <div class="chrome-hint">
+              Tạo Gist tại <code>gist.github.com</code>, lấy ID từ URL
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:4px;">
+            <button class="btn btn-sm btn-primary" onclick="App.testGistConnection()" style="flex:1;justify-content:center;">
+              <i class="ti ti-plug"></i> Kiểm tra kết nối
+            </button>
+            <button class="btn btn-sm" onclick="App.pullFromGist()" style="flex:1;justify-content:center;">
+              <i class="ti ti-cloud-download"></i> Kéo từ Gist
+            </button>
+          </div>
+          <div id="gistStatus" class="gist-status"></div>
+        </div>
+
+        <!-- Hành vi mở chat -->
+        <div class="settings-section">
+          <div class="settings-section-title">
+            <i class="ti ti-external-link"></i> Hành vi khi mở chat
+          </div>
+          <div class="pref-row">
+            <div>
+              <div>Luôn hỏi cách mở</div>
+              <div class="pref-sub">Hiện bảng chọn mỗi lần nhấn Mở Chat</div>
+            </div>
+            <button class="toggle" id="settingsAlwaysAsk" onclick="App.toggleSettingsAlwaysAsk()"></button>
+          </div>
+          <div class="pref-row">
+            <div>
+              <div>Phương thức mặc định</div>
+              <div class="pref-sub">Dùng khi tắt "luôn hỏi"</div>
+            </div>
+            <select class="filter-sel" id="defaultOpenMode" style="width:auto;" onchange="App.saveDefaultMode()">
+              <option value="direct">Tab mới</option>
+              <option value="chrome">Chrome + Profile</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Chrome mặc định -->
+        <div class="settings-section">
+          <div class="settings-section-title">
+            <i class="ti ti-brand-chrome"></i> Chrome mặc định
+          </div>
+          <div class="fgroup">
+            <label>Đường dẫn Linux / macOS</label>
+            <input id="sChromePath" type="text" placeholder="google-chrome" />
+          </div>
+          <div class="fgroup">
+            <label>Đường dẫn Windows</label>
+            <input id="sChromePathWin" type="text" placeholder='"C:\Program Files\Google\Chrome\Application\chrome.exe"' />
+          </div>
+        </div>
+
+        <!-- Dữ liệu -->
+        <div class="settings-section">
+          <div class="settings-section-title">
+            <i class="ti ti-database"></i> Dữ liệu
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-sm" onclick="App.exportData()" style="flex:1;justify-content:center;">
+              <i class="ti ti-download"></i> Export JSON
+            </button>
+            <button class="btn btn-sm" onclick="App.importData()" style="flex:1;justify-content:center;">
+              <i class="ti ti-upload"></i> Import JSON
+            </button>
+          </div>
+        </div>
+
+      </div><!-- /.sheet-body -->
+      <div class="sheet-footer">
+        <button class="btn" onclick="App.closeOverlay('settingsOverlay')">Đóng</button>
+        <button class="btn btn-primary" onclick="App.saveSettings()">
+          <i class="ti ti-check"></i> Lưu
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="importFile" accept=".json" style="display:none" onchange="App.handleImport(event)" />
+
+<script src="app.js"></script>
+</body>
+</html>

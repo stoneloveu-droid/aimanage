@@ -649,3 +649,41 @@ body {
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-med); border-radius: 2px; }
+
+/* ─── v3 additions ─── */
+
+/* Countdown label trên card */
+.card-countdown {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600;
+  color: var(--amber);
+  background: var(--amber-bg);
+  border-radius: 7px;
+  padding: 5px 9px;
+  margin: 6px 0 4px;
+}
+@media (prefers-color-scheme: dark) {
+  .card-countdown { background: rgba(186,117,23,0.15); }
+}
+.card-countdown i { font-size: 13px; flex-shrink: 0; }
+.countdown-label.resetting { color: var(--green); }
+
+/* Nút "Hết limit" trên card */
+.btn-limit {
+  color: var(--amber);
+  border-color: rgba(186,117,23,0.35);
+  background: var(--amber-bg);
+  font-weight: 600;
+}
+.btn-limit:hover { background: #f5deb0; }
+@media (prefers-color-scheme: dark) {
+  .btn-limit { background: rgba(186,117,23,0.15); }
+  .btn-limit:hover { background: rgba(186,117,23,0.25); }
+}
+
+/* card-foot flex wrap cho mobile */
+.card-foot {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  margin-top: 10px; gap: 8px; flex-wrap: wrap;
+}

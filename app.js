@@ -1,10 +1,11 @@
-// ====================== AI ACCOUNT HUB - app.js ======================
+// ====================== AI ACCOUNT HUB - app.js v3 ======================
 
 const App = {
     accounts: [],
     activeAIFilter: '',
     pendingDeleteIndex: -1,
     pendingOpenURL: '',
+    countdownTimer: null,
     settings: {
         alwaysAsk: true,
         defaultOpenMode: 'direct',
@@ -12,6 +13,19 @@ const App = {
         chromePathWin: '"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"',
         gistToken: '',
         gistId: ''
+    },
+
+    // ── Reset times (ms) mặc định theo AI ──
+    RESET_TIMES: {
+        'ChatGPT':    3  * 3600 * 1000,
+        'Claude':     5  * 3600 * 1000,
+        'Gemini':     24 * 3600 * 1000,
+        'Perplexity': 4  * 3600 * 1000,
+        'DeepSeek':   24 * 3600 * 1000,
+        'Grok':       3  * 3600 * 1000,
+        'Copilot':    3  * 3600 * 1000,
+        'Mistral':    3  * 3600 * 1000,
+        'Llama':      3  * 3600 * 1000,
     },
 
     // ====================== DATA ======================
@@ -30,6 +44,79 @@ const App = {
     saveData() {
         localStorage.setItem('aiAccounts', JSON.stringify(this.accounts));
         localStorage.setItem('aiSettings', JSON.stringify(this.settings));
+    },
+
+    // ====================== RATE LIMIT ======================
+    markLimited(index) {
+        const acc = this.accounts[index];
+        const resetMs = this.RESET_TIMES[acc.ai] || (3 * 3600 * 1000);
+        acc.status = 'limited';
+        acc.resetAt = new Date(Date.now() + resetMs).toISOString();
+        this.saveData();
+        this.render();
+        const h = Math.round(resetMs / 3600000);
+        this.showToast(`Đặt rate limit — reset sau ~${h}g`, 'info');
+    },
+
+    checkAutoReset() {
+        let changed = false;
+        const now = Date.now();
+        this.accounts.forEach(acc => {
+            if (acc.status === 'limited' && acc.resetAt) {
+                if (new Date(acc.resetAt).getTime() <= now) {
+                    acc.status = 'active';
+                    acc.resetAt = null;
+                    changed = true;
+                }
+            }
+        });
+        if (changed) {
+            this.saveData();
+            this.render();
+            this.showToast('Một số tài khoản đã reset về Active ✓', 'ok');
+        }
+    },
+
+    startCountdownTimer() {
+        if (this.countdownTimer) clearInterval(this.countdownTimer);
+        // Check every 30s, update countdown labels every 1s via requestAnimationFrame
+        this.countdownTimer = setInterval(() => {
+            this.checkAutoReset();
+            this.updateCountdownLabels();
+        }, 30000);
+        // Also update labels immediately & every second for smooth display
+        this.countdownFrameLoop();
+    },
+
+    countdownFrameLoop() {
+        this.updateCountdownLabels();
+        setTimeout(() => this.countdownFrameLoop(), 1000);
+    },
+
+    updateCountdownLabels() {
+        const now = Date.now();
+        document.querySelectorAll('.countdown-label').forEach(el => {
+            const resetAt = el.dataset.resetat;
+            if (!resetAt) return;
+            const diff = new Date(resetAt).getTime() - now;
+            if (diff <= 0) {
+                el.textContent = 'Đang reset...';
+                el.className = 'countdown-label resetting';
+            } else {
+                el.textContent = 'Reset sau ' + this.formatCountdown(diff);
+                el.className = 'countdown-label ticking';
+            }
+        });
+    },
+
+    formatCountdown(ms) {
+        const totalSec = Math.floor(ms / 1000);
+        const h = Math.floor(totalSec / 3600);
+        const m = Math.floor((totalSec % 3600) / 60);
+        const s = totalSec % 60;
+        if (h > 0) return `${h}g ${String(m).padStart(2,'0')}p`;
+        if (m > 0) return `${m}p ${String(s).padStart(2,'0')}s`;
+        return `${s}s`;
     },
 
     // ====================== RENDER ======================
@@ -53,7 +140,6 @@ const App = {
             return matchSearch && matchStatus && matchTag && matchAI;
         });
 
-        // Sort: active first, then by lastUsed (most recent first)
         filtered.sort((a, b) => {
             const statusOrder = { active: 0, limited: 1, expired: 2, banned: 3 };
             const sDiff = (statusOrder[a.status] || 0) - (statusOrder[b.status] || 0);
@@ -86,7 +172,6 @@ const App = {
                     <p class="empty-hint">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
                 </div>`;
         } else {
-            // Find real indices in this.accounts for edit/delete
             filtered.forEach(acc => {
                 const realIndex = this.accounts.indexOf(acc);
                 const card = document.createElement('div');
@@ -107,6 +192,22 @@ const App = {
             ? `<div class="tags">${acc.tags.map(t => `<span class="tag">${this.escapeHtml(t)}</span>`).join('')}</div>` : '';
         const noteRow = acc.note ? `<div class="card-note">${this.escapeHtml(acc.note)}</div>` : '';
         const timeStr = acc.lastUsed ? this.timeAgo(acc.lastUsed) : 'Chưa dùng';
+
+        // Rate limit section
+        let limitRow = '';
+        if (acc.status === 'limited' && acc.resetAt) {
+            limitRow = `<div class="card-countdown">
+                <i class="ti ti-clock-hour-4"></i>
+                <span class="countdown-label ticking" data-resetat="${acc.resetAt}">Đang tính...</span>
+            </div>`;
+        }
+
+        // Nút "Hết limit" chỉ hiện khi status = active
+        const limitBtn = acc.status === 'active'
+            ? `<button class="btn btn-sm btn-limit" onclick="App.markLimited(${index})" title="Đánh dấu hết limit">
+                <i class="ti ti-clock-pause"></i> Hết limit
+               </button>`
+            : '';
 
         return `
             <div class="card-top">
@@ -136,6 +237,7 @@ const App = {
                 ${hasProfile}
             </div>
 
+            ${limitRow}
             ${tagsRow}
             ${noteRow}
 
@@ -143,9 +245,12 @@ const App = {
                 <div class="card-time">
                     <i class="ti ti-clock"></i> ${timeStr}
                 </div>
-                <button class="btn btn-open" onclick="App.openChat(${index})">
-                    <i class="ti ti-external-link"></i> Mở Chat
-                </button>
+                <div style="display:flex;gap:6px;align-items:center;">
+                    ${limitBtn}
+                    <button class="btn btn-open" onclick="App.openChat(${index})">
+                        <i class="ti ti-external-link"></i> Mở Chat
+                    </button>
+                </div>
             </div>
         `;
     },
@@ -282,6 +387,7 @@ const App = {
         });
         document.getElementById('fAI').value = 'ChatGPT';
         document.getElementById('fStatus').value = 'active';
+        document.getElementById('fBrowser').value = 'chrome';
         document.getElementById('formOverlay').classList.add('open');
         this.currentEditIndex = -1;
         setTimeout(() => document.getElementById('fName').focus(), 300);
@@ -300,6 +406,7 @@ const App = {
         document.getElementById('fProfile').value = acc.profile || '';
         document.getElementById('fChromePath').value = acc.chromePath || '';
         document.getElementById('fNote').value = acc.note || '';
+        document.getElementById('fBrowser').value = acc.browser || 'chrome';
         document.getElementById('formOverlay').classList.add('open');
     },
 
@@ -311,19 +418,23 @@ const App = {
             return;
         }
 
+        const existing = this.currentEditIndex >= 0 ? this.accounts[this.currentEditIndex] : {};
+
         const account = {
-            id: this.currentEditIndex >= 0 ? this.accounts[this.currentEditIndex].id : Date.now().toString(),
+            id: existing.id || Date.now().toString(),
             name,
-            ai:         document.getElementById('fAI').value,
-            email:      document.getElementById('fEmail').value.trim(),
-            status:     document.getElementById('fStatus').value,
-            tags:       document.getElementById('fTags').value.split(',').map(t => t.trim()).filter(Boolean),
-            url:        document.getElementById('fUrl').value.trim(),
-            profile:    document.getElementById('fProfile').value.trim(),
-            chromePath: document.getElementById('fChromePath').value.trim(),
-            note:       document.getElementById('fNote').value.trim(),
-            lastUsed:   this.currentEditIndex >= 0 ? (this.accounts[this.currentEditIndex].lastUsed || null) : null,
-            createdAt:  this.currentEditIndex >= 0 ? (this.accounts[this.currentEditIndex].createdAt || new Date().toISOString()) : new Date().toISOString(),
+            ai:          document.getElementById('fAI').value,
+            email:       document.getElementById('fEmail').value.trim(),
+            status:      document.getElementById('fStatus').value,
+            tags:        document.getElementById('fTags').value.split(',').map(t => t.trim()).filter(Boolean),
+            url:         document.getElementById('fUrl').value.trim(),
+            profile:     document.getElementById('fProfile').value.trim(),
+            chromePath:  document.getElementById('fChromePath').value.trim(),
+            note:        document.getElementById('fNote').value.trim(),
+            browser:     document.getElementById('fBrowser').value,
+            lastUsed:    existing.lastUsed || null,
+            createdAt:   existing.createdAt || new Date().toISOString(),
+            resetAt:     existing.resetAt || null,
         };
 
         if (this.currentEditIndex >= 0) {
@@ -370,11 +481,12 @@ const App = {
         const url = acc.url || this.getDefaultURL(acc.ai);
         this.pendingOpenURL = url;
         this.pendingOpenAcc = acc;
+        this.pendingOpenIndex = index;
 
         if (this.settings.alwaysAsk) {
             this.showOpenOptions(acc, url, index);
         } else if (this.settings.defaultOpenMode === 'chrome') {
-            this.openWithChromeCmd(acc, url);
+            this.openWithBrowserCmd(acc, url);
         } else {
             window.open(url, '_blank');
             this.render();
@@ -387,6 +499,8 @@ const App = {
 
         const list = document.getElementById('openOptionList');
         const hasProfile = !!acc.profile;
+        const browser = acc.browser || 'chrome';
+        const browserName = browser === 'edge' ? 'Edge' : browser === 'firefox' ? 'Firefox' : browser === 'brave' ? 'Brave' : 'Chrome';
 
         list.innerHTML = `
             <div class="open-opt" onclick="App.doOpenDirect('${url}')">
@@ -399,24 +513,23 @@ const App = {
                 </div>
                 <i class="ti ti-chevron-right open-opt-arrow"></i>
             </div>
-            <div class="open-opt" onclick="App.doOpenChrome()">
-                <div class="open-opt-icon" style="background:${hasProfile ? '#EAF3DE' : 'rgba(0,0,0,0.05)'};">
-                    <i class="ti ti-brand-chrome" style="color:${hasProfile ? '#639922' : 'rgba(0,0,0,0.4)'};font-size:18px;"></i>
+            <div class="open-opt" onclick="App.doOpenBrowser()">
+                <div class="open-opt-icon" style="background:#FFF3E0;">
+                    <i class="ti ti-brand-${browser === 'edge' ? 'edge' : browser === 'firefox' ? 'firefox' : 'chrome'}" style="color:#FF6F00;font-size:18px;"></i>
                 </div>
                 <div style="flex:1">
-                    <div class="open-opt-title">Chrome + Profile</div>
+                    <div class="open-opt-title">${browserName} + Profile</div>
                     <div class="open-opt-sub">${hasProfile ? `Profile: ${acc.profile}` : 'Chưa cấu hình profile'}</div>
                 </div>
                 <i class="ti ti-chevron-right open-opt-arrow"></i>
             </div>
         `;
 
-        // Sync toggle state
         const toggle = document.getElementById('alwaysAskToggle');
         toggle.classList.toggle('on', this.settings.alwaysAsk);
 
         document.getElementById('openOverlay').classList.add('open');
-        this.render(); // update lastUsed display
+        this.render();
     },
 
     doOpenDirect(url) {
@@ -424,26 +537,46 @@ const App = {
         this.closeOpen();
     },
 
-    doOpenChrome() {
+    doOpenBrowser() {
         this.closeOpen();
         const acc = this.pendingOpenAcc;
         const url = this.pendingOpenURL;
-        if (acc) this.openWithChromeCmd(acc, url);
+        if (acc) this.openWithBrowserCmd(acc, url);
     },
 
-    openWithChromeCmd(acc, url) {
+    openWithBrowserCmd(acc, url) {
         const profile = acc.profile || 'Default';
-        const chromePath = acc.chromePath || this.settings.chromePath || 'google-chrome';
-        const chromePathWin = acc.chromePath || this.settings.chromePathWin;
+        const browser = acc.browser || 'chrome';
 
-        const linuxCmd = `${chromePath} --profile-directory="${profile}" "${url}"`;
-        const winCmd   = `${chromePathWin} --profile-directory="${profile}" "${url}"`;
+        // Linux/macOS commands
+        let linuxCmd, winCmd;
+
+        if (browser === 'edge') {
+            const edgePath = acc.chromePath || 'microsoft-edge';
+            const edgeWin = '"C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe"';
+            linuxCmd = `${edgePath} --profile-directory="${profile}" "${url}"`;
+            winCmd   = `${acc.chromePath || edgeWin} --profile-directory="${profile}" "${url}"`;
+        } else if (browser === 'firefox') {
+            linuxCmd = `firefox -P "${profile}" "${url}"`;
+            winCmd   = `"C:\\Program Files\\Mozilla Firefox\\firefox.exe" -P "${profile}" "${url}"`;
+        } else if (browser === 'brave') {
+            const bravePath = acc.chromePath || 'brave-browser';
+            const braveWin = '"C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"';
+            linuxCmd = `${bravePath} --profile-directory="${profile}" "${url}"`;
+            winCmd   = `${acc.chromePath || braveWin} --profile-directory="${profile}" "${url}"`;
+        } else {
+            // Chrome (default)
+            const chromePath = acc.chromePath || this.settings.chromePath || 'google-chrome';
+            const chromeWin  = acc.chromePath || this.settings.chromePathWin;
+            linuxCmd = `${chromePath} --profile-directory="${profile}" "${url}"`;
+            winCmd   = `${chromeWin} --profile-directory="${profile}" "${url}"`;
+        }
 
         document.getElementById('cmdLinuxText').textContent = linuxCmd;
         document.getElementById('cmdWinText').textContent = winCmd;
         document.getElementById('cmdInfo').innerHTML =
             `<i class="ti ti-link"></i> <strong>${url}</strong>` +
-            (acc.profile ? `<br><i class="ti ti-brand-chrome"></i> Profile: <strong>${acc.profile}</strong>` : '');
+            (acc.profile ? `<br><i class="ti ti-${browser}"></i> Profile: <strong>${acc.profile}</strong>` : '');
         document.getElementById('cmdOverlay').classList.add('open');
     },
 
@@ -458,7 +591,6 @@ const App = {
         navigator.clipboard.writeText(text).then(() => {
             this.showToast('Đã copy lệnh!');
         }).catch(() => {
-            // Fallback
             const el = document.getElementById(id);
             const range = document.createRange();
             range.selectNode(el);
@@ -520,7 +652,6 @@ const App = {
         document.getElementById('settingsAlwaysAsk').classList.toggle('on', this.settings.alwaysAsk);
         document.getElementById('gistStatus').textContent = '';
         document.getElementById('gistStatus').className = 'gist-status';
-        // Reset token eye
         document.getElementById('sGistToken').type = 'password';
         document.getElementById('tokenEyeIcon').className = 'ti ti-eye';
         document.getElementById('settingsOverlay').classList.add('open');
@@ -658,7 +789,7 @@ const App = {
         const data = {
             accounts: this.accounts,
             exportedAt: new Date().toISOString(),
-            version: 2
+            version: 3
         };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -727,41 +858,47 @@ const App = {
     // ====================== SEED DATA ======================
     seedDemoData() {
         if (this.accounts.length > 0) return;
+        const now = Date.now();
         this.accounts = [
             {
                 id: '1', name: 'ChatGPT - Work', ai: 'ChatGPT', email: 'work@gmail.com',
                 status: 'active', tags: ['Coding', 'Research'], profile: 'Profile 1',
-                url: '', chromePath: '', note: 'Tài khoản Plus, dùng cho công việc',
-                lastUsed: new Date(Date.now() - 3600000).toISOString(),
-                createdAt: new Date().toISOString()
+                url: '', chromePath: '', browser: 'chrome',
+                note: 'Tài khoản Plus, dùng cho công việc',
+                lastUsed: new Date(now - 3600000).toISOString(),
+                createdAt: new Date().toISOString(), resetAt: null
             },
             {
                 id: '2', name: 'Claude - Personal', ai: 'Claude', email: 'personal@gmail.com',
                 status: 'active', tags: ['Writing', 'Analysis'], profile: 'Profile 2',
-                url: '', chromePath: '', note: 'Claude Pro subscription',
-                lastUsed: new Date(Date.now() - 86400000).toISOString(),
-                createdAt: new Date().toISOString()
+                url: '', chromePath: '', browser: 'edge',
+                note: 'Claude Pro subscription',
+                lastUsed: new Date(now - 86400000).toISOString(),
+                createdAt: new Date().toISOString(), resetAt: null
             },
             {
                 id: '3', name: 'Gemini - Backup', ai: 'Gemini', email: 'backup@gmail.com',
                 status: 'limited', tags: ['Research', 'Translation'], profile: '',
-                url: '', chromePath: '', note: 'Rate limited, thử lại sau 1 giờ',
-                lastUsed: new Date(Date.now() - 7200000).toISOString(),
-                createdAt: new Date().toISOString()
+                url: '', chromePath: '', browser: 'chrome',
+                note: 'Rate limited',
+                lastUsed: new Date(now - 7200000).toISOString(),
+                createdAt: new Date().toISOString(),
+                resetAt: new Date(now + 2 * 3600000 + 15 * 60000).toISOString()
             },
             {
                 id: '4', name: 'Perplexity Pro', ai: 'Perplexity', email: 'perp@gmail.com',
                 status: 'active', tags: ['Research'], profile: 'Profile 3',
-                url: '', chromePath: '', note: 'Dùng cho tìm kiếm chuyên sâu',
-                lastUsed: null,
-                createdAt: new Date().toISOString()
+                url: '', chromePath: '', browser: 'chrome',
+                note: 'Dùng cho tìm kiếm chuyên sâu',
+                lastUsed: null, createdAt: new Date().toISOString(), resetAt: null
             },
             {
                 id: '5', name: 'DeepSeek - Free', ai: 'DeepSeek', email: '',
                 status: 'active', tags: ['Coding'], profile: '',
-                url: '', chromePath: '', note: 'Free tier, giới hạn 50 msg/ngày',
-                lastUsed: new Date(Date.now() - 172800000).toISOString(),
-                createdAt: new Date().toISOString()
+                url: '', chromePath: '', browser: 'chrome',
+                note: 'Free tier, giới hạn 50 msg/ngày',
+                lastUsed: new Date(now - 172800000).toISOString(),
+                createdAt: new Date().toISOString(), resetAt: null
             },
         ];
         this.saveData();
@@ -771,16 +908,21 @@ const App = {
     init() {
         this.loadData();
         this.seedDemoData();
+        this.checkAutoReset();
         this.render();
+        this.startCountdownTimer();
 
-        // Close overlays on backdrop click
+        // Re-check khi tab focus lại
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) this.checkAutoReset();
+        });
+
         document.querySelectorAll('.overlay').forEach(overlay => {
             overlay.addEventListener('click', (e) => {
                 if (e.target === overlay) overlay.classList.remove('open');
             });
         });
 
-        // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 document.querySelectorAll('.overlay.open').forEach(o => o.classList.remove('open'));
@@ -796,7 +938,12 @@ const App = {
             }
         });
 
-        console.log('%c🤖 AI Account Hub v2 ready', 'color:#185FA5;font-weight:700;font-size:14px');
+        // Register service worker for PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js').catch(() => {});
+        }
+
+        console.log('%c🤖 AI Account Hub v3 ready', 'color:#185FA5;font-weight:700;font-size:14px');
         console.log('%cShortcuts: Ctrl+K (search) · Ctrl+N (add) · Esc (close)', 'color:#888;font-size:11px');
     }
 };

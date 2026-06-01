@@ -4,6 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Account Hub</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#185FA5" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="AI Hub" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css" />
 </head>
@@ -119,18 +128,30 @@
           <input id="fUrl" type="url" placeholder="https://..." />
         </div>
         <div class="chrome-box">
-          <div class="chrome-box-title"><i class="ti ti-brand-chrome"></i> Chrome Profile</div>
-          <div class="fgroup">
-            <label>Profile directory</label>
-            <input id="fProfile" type="text" placeholder='VD: "Profile 3" hoặc "Default"' />
+          <div class="chrome-box-title"><i class="ti ti-browser"></i> Trình duyệt & Profile</div>
+          <div class="frow">
+            <div class="fgroup">
+              <label>Trình duyệt</label>
+              <select id="fBrowser">
+                <option value="chrome">Chrome</option>
+                <option value="edge">Edge</option>
+                <option value="brave">Brave</option>
+                <option value="firefox">Firefox</option>
+              </select>
+            </div>
+            <div class="fgroup">
+              <label>Profile directory / tên</label>
+              <input id="fProfile" type="text" placeholder='VD: "Profile 3" hoặc "Default"' />
+            </div>
           </div>
           <div class="fgroup">
-            <label>Đường dẫn Chrome (ghi đè mặc định)</label>
-            <input id="fChromePath" type="text" placeholder="/usr/bin/google-chrome" />
+            <label>Đường dẫn trình duyệt (ghi đè mặc định)</label>
+            <input id="fChromePath" type="text" placeholder="/usr/bin/google-chrome hoặc để trống" />
           </div>
           <div class="chrome-hint">
             <i class="ti ti-info-circle"></i>
-            Tìm Profile: Chrome → <code>chrome://version</code> → xem Profile Path
+            Chrome/Edge: mở <code>about:version</code> → xem Profile Path.
+            Firefox: tên profile trong <code>about:profiles</code>
           </div>
         </div>
         <div class="fgroup">
@@ -176,13 +197,13 @@
 </div>
 
 
-<!-- ───── Modal: Lệnh Chrome terminal ───── -->
+<!-- ───── Modal: Lệnh terminal ───── -->
 <div class="overlay" id="cmdOverlay">
   <div class="sheet-wrap">
     <div class="sheet">
       <div class="sheet-handle"></div>
       <div class="sheet-header">
-        <h2><i class="ti ti-terminal"></i> Lệnh mở Chrome</h2>
+        <h2><i class="ti ti-terminal"></i> Lệnh mở trình duyệt</h2>
         <button class="btn btn-icon" onclick="App.closeOverlay('cmdOverlay')"><i class="ti ti-x"></i></button>
       </div>
       <div class="sheet-body">
@@ -297,15 +318,15 @@
             </div>
             <select class="filter-sel" id="defaultOpenMode" style="width:auto;" onchange="App.saveDefaultMode()">
               <option value="direct">Tab mới</option>
-              <option value="chrome">Chrome + Profile</option>
+              <option value="chrome">Browser + Profile</option>
             </select>
           </div>
         </div>
 
-        <!-- Chrome mặc định -->
+        <!-- Chrome/Edge mặc định -->
         <div class="settings-section">
           <div class="settings-section-title">
-            <i class="ti ti-brand-chrome"></i> Chrome mặc định
+            <i class="ti ti-browser"></i> Trình duyệt mặc định (Chrome)
           </div>
           <div class="fgroup">
             <label>Đường dẫn Linux / macOS</label>
@@ -315,6 +336,7 @@
             <label>Đường dẫn Windows</label>
             <input id="sChromePathWin" type="text" placeholder='"C:\Program Files\Google\Chrome\Application\chrome.exe"' />
           </div>
+          <div class="chrome-hint">Edge Windows mặc định: <code>C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe</code></div>
         </div>
 
         <!-- Dữ liệu -->
